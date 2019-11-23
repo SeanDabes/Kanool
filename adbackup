@@ -1,0 +1,68 @@
+#!/bin/bash
+
+devicestatus=`adb get-state`
+if [ $devicestatus = "device" ] || [ $devicestatus = "recovery" ]; then
+    echo "Device detected with serial number `adb get-serialno`."
+    echo
+    echo "¿Download or upload files from/to device? (d/u)"
+    read option
+    echo
+    if [ $option = u ]; then
+        echo "The backup contains this stuff:"
+        files=(`ls`)
+        index=0
+        for i in "${files[@]}"
+            do
+                index=`expr $index + 1`            
+                echo "   "$index"." $i
+            done
+        echo
+        echo "Enter the corresponding number to push it to the device or 0 for all."
+        read pushoption
+        if [ $pushoption != 0 ]; then
+            echo "Pushing "${files[`expr $pushoption - 1`]}" to /sdcard/..."
+            adb push ${files[`expr $pushoption - 1`]} /sdcard/
+        fi
+        if [ $pushoption = 0 ]; then
+            echo "Pushing files to phone..."
+            adb push * /sdcard/
+        fi
+    fi
+    if [ $option = d ]; then
+        echo "The /sdcard/ folder in the device contains this stuff:"
+        files=(`adb shell ls /sdcard/`)
+        index=0
+        for i in "${files[@]}"
+            do
+                index=`expr $index + 1`            
+                echo "   "$index"." $i
+            done
+        echo
+        echo "Do you want to download everything? (y/n)"
+        read downloadall
+        if [ $downloadall = y ]; then
+            echo "Downloading everything from the /sdcard/ folder in the device..."
+            adb pull /sdcard/
+        fi
+        if [ $downloadall = n ]; then
+            echo "Enter the lines you want to download separated with space. Once done, press enter."
+            read -a multioption
+            index=0
+            echo "Your selection is:"
+            for i in "${multioption[@]}"
+                do
+                    echo ${files[`expr $i - 1`]}
+                done
+            echo
+            index=0
+            for i in "${multioption[@]}"
+                do
+                    echo "Downloading "${files[`expr $i - 1`]} "..."
+                    adb pull /sdcard/${files[`expr $i - 1`]}/
+                done
+            echo
+        fi
+    fi
+    echo "Finished."
+    echo
+fi
