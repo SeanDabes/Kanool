@@ -58,7 +58,7 @@ if [ $devicestatus = "device" ] || [ $devicestatus = "recovery" ]; then
             for i in "${multioption[@]}"
                 do
                     echo "Downloading "${files[`expr $i - 1`]} "..."
-                    adb pull /sdcard/${files[`expr $i - 1`]}/
+                    adb pull /sdcard/${files[`expr $i - 1`]}
                 done
             echo
         fi
