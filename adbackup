@@ -17,15 +17,29 @@ if [ $devicestatus = "device" ] || [ $devicestatus = "recovery" ]; then
                 echo "   "$index"." $i
             done
         echo
-        echo "Enter the corresponding number to push it to the device or 0 for all."
-        read pushoption
-        if [ $pushoption != 0 ]; then
-            echo "Pushing "${files[`expr $pushoption - 1`]}" to /sdcard/..."
-            adb push ${files[`expr $pushoption - 1`]} /sdcard/
-        fi
-        if [ $pushoption = 0 ]; then
-            echo "Pushing files to phone..."
+        echo "Do you want to upload everything? (y/n)"
+        read pushall
+        if [ $pushall = y ]; then
+            echo "Uploading everything from the /sdcard/ folder in the device..."
             adb push * /sdcard/
+        fi
+        if [ $pushall = n ]; then
+            echo "Enter the lines you want to upload separated with space. Once done, press enter."
+            read -a multioption
+            index=0
+            echo "Your selection is:"
+            for i in "${multioption[@]}"
+                do
+                    echo ${files[`expr $i - 1`]}
+                done
+            echo
+            index=0
+            for i in "${multioption[@]}"
+                do
+                    echo "Uploading "${files[`expr $i - 1`]} "..."
+                    adb push ${files[`expr $i - 1`]} /sdcard/
+                done
+            echo
         fi
     fi
     if [ $option = d ]; then
