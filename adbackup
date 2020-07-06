@@ -17,16 +17,13 @@ if [ $devicestatus = "device" ] || [ $devicestatus = "recovery" ]; then
                 echo "   "$index"." $i
             done
         echo
-        echo "Do you want to upload everything? (y/n)"
-        read pushall
-        if [ $pushall = y ]; then
+        echo "Enter the lines you want to upload separated with space or a for everything. Once done, press enter."
+        read -a multioption
+        index=0
+        if [ "${multioption[@]}" = a ]; then
             echo "Uploading everything from the /sdcard/ folder in the device..."
             adb push * /sdcard/
-        fi
-        if [ $pushall = n ]; then
-            echo "Enter the lines you want to upload separated with space. Once done, press enter."
-            read -a multioption
-            index=0
+        else
             echo "Your selection is:"
             for i in "${multioption[@]}"
                 do
@@ -40,7 +37,7 @@ if [ $devicestatus = "device" ] || [ $devicestatus = "recovery" ]; then
                     adb push ${files[`expr $i - 1`]} /sdcard/
                 done
             echo
-        fi
+       fi
     fi
     if [ $option = d ]; then
         echo "The /sdcard/ folder in the device contains this stuff:"
@@ -52,16 +49,13 @@ if [ $devicestatus = "device" ] || [ $devicestatus = "recovery" ]; then
                 echo "   "$index"." $i
             done
         echo
-        echo "Do you want to download everything? (y/n)"
-        read downloadall
-        if [ $downloadall = y ]; then
+        echo "Enter the lines you want to download separated with space or a for everything. Once done, press enter."
+        read -a multioption
+        index=0
+        if [ "${multioption[@]}" = a ]; then
             echo "Downloading everything from the /sdcard/ folder in the device..."
             adb pull /sdcard/
-        fi
-        if [ $downloadall = n ]; then
-            echo "Enter the lines you want to download separated with space. Once done, press enter."
-            read -a multioption
-            index=0
+        else
             echo "Your selection is:"
             for i in "${multioption[@]}"
                 do
