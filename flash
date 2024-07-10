@@ -1,0 +1,225 @@
+#!/bin/bash
+
+function detectdeviceadb(){
+    devicestatus=`adb get-state`
+    case $devicestatus in
+        "")
+            return 0
+        ;;
+        "recovery")
+            return 1
+        ;;
+        "sideload")
+            return 2
+        ;;
+        "device")
+            return 3
+    esac
+}
+
+function flash(){
+    case $1 in
+        "recovery")
+            status=`fastboot devices`
+            if [ "$status" != "" ]; then
+                echo "Device detected in fastboot mode, OK."
+                cd $1
+                recoveries=(`ls`)
+                echo "These $1 zips have been found:"
+                echo
+                index=0
+                for i in "${recoveries[@]}"
+                    do
+                        index=`expr $index + 1`
+                        echo "   "$index"." $i
+                    done
+                echo
+                echo "Select a recovery to flash or c to cancel"
+                read recoveryflash
+                case $recoveryflash in
+                    c)
+                            cd ..
+                            flashmenu
+                    ;;
+                    *)
+                        if [ $recoveryflash -gt $index ]; then
+                            echo " Wrong answer, operation cancelled."
+                            echo " Press any key to return to menu"
+                            read -sn 1
+                            cd ..
+                            flashmenu
+                        else
+                            randomnumber=`echo $[RANDOM % 99 + 0 ]`
+                            echo " Please enter the number $randomnumber to confirm."
+                            read rnum
+                            if [ $rnum = $randomnumber ]; then
+                                echo " Flashing ${recoveries[`expr $recoveryflash - 1`]}"
+                                fastboot flash recovery "${recoveries[`expr $recoveryflash - 1`]}"
+                                cd ..
+                                finish
+                            else
+                                echo " Wrong answer, operation cancelled."
+                                echo " Press any key to return to menu"
+                                read -sn 1
+                                cd ..
+                                flashmenu
+                            fi
+                        fi
+                esac
+            else
+                detectdeviceadb
+                res=$?
+                if [ $res = 1 ] || [ $res = 2 ]; then
+                    echo "Device not detected in fastboot mode, trying to reboot in fastboot mode..."
+                    adb reboot bootloader
+                    echo "Waiting 10 seconds for device..."
+                    sleep 10
+                    flash recovery
+                else
+                    echo "Device not detected. Ensure the right connection and try again."
+                    echo "Press a key to continue."
+                fi
+            fi
+            read -sn 1
+        ;;
+        "firmware" | "rom" | "addon")
+            detectdeviceadb
+            res=$?
+            case $res in
+                0)
+                    echo 
+                    echo " WARNING: Device could not be detected automatically."
+                    echo " Reboot to recovery manually and go to \"Apply update\" > \"Apply from ADB\""
+                    echo
+                    echo " The process will continue automatically when done."
+                    echo " Press c to continue or x to cancel"
+                    read -sn 1 opt
+                    case $opt in
+                        "c")
+                            echo " Waiting for device in sideload mode..."
+                            adb wait-for-sideload
+                            flash $1
+                        ;;
+                        "x")
+                            flashmenu
+                        ;;
+                    esac
+                ;;
+                1)
+                    echo
+                    echo " Device detected in recovery mode."
+                    echo " Go to \"Apply update\" > \"Apply from ADB\""
+                    echo
+                    echo " The process will continue automatically when done."
+                    adb wait-for-sideload
+                    flash $1
+                ;;
+                2)
+                    echo
+                    echo "Device detected in sideload mode, OK."
+                    cd $1
+                    zips=(`ls *.zip`)
+                    echo "These $1 zips have been found:"
+                    echo
+                    index=0
+                    for i in "${zips[@]}"
+                        do
+                            index=`expr $index + 1`
+                            echo "   "$index"." $i
+                        done
+                    echo
+                    echo "Select a $1 to flash or c to cancel"
+                    read zipflash
+                    case $zipflash in
+                        c)
+                                cd ..
+                                flashmenu
+                        ;;
+                        *)
+                            if [ $zipflash -gt $index ]; then
+                                echo " Wrong answer, operation cancelled."
+                                echo " Press any key to return to menu"
+                                read -sn 1
+                                cd ..
+                                flashmenu
+                            else
+                                randomnumber=`echo $[RANDOM % 99 + 0 ]`
+                                echo " Please enter the number $randomnumber to confirm."
+                                read rnum
+                                if [ $rnum = $randomnumber ]; then
+                                    echo " Flashing ${zips[`expr $zipflash - 1`]}"
+                                    adb sideload "${zips[`expr $zipflash - 1`]}"
+                                    cd ..
+                                    finish
+                                else
+                                    echo " Wrong answer, operation cancelled."
+                                    echo " Press any key to return to menu"
+                                    read -sn 1
+                                    cd ..
+                                    flashmenu
+                                fi
+                            fi
+                    esac
+            ;;
+            3)
+                echo " Device detected in system mode, rebooting to recovery."
+                echo " >> WARNING <<"
+                echo " When it reboots in recovery mode, go to \"Apply update\" > \"Apply from ADB\""
+                echo
+                echo " The process will continue automatically when done."
+                adb reboot recovery && adb wait-for-sideload
+                flash $1
+            esac
+    esac
+}
+
+function finish(){
+    echo "Finished. Press a key to continue."
+    read -sn 1
+}
+
+function flashmenu(){
+    clear
+    ./banner
+    echo "------------------------------------------------------"
+    echo "  Flash menu"
+    echo "------------------------------------------------------"
+    echo
+    echo " Select an operation:"
+    echo " r - Flash recovery."
+    echo " f - Flash firmware."
+    echo " s - Flash ROM."
+    echo " a - Flash add-ons."
+    echo
+    echo " x - To go back to main menu."
+    read -s -n 1 bkpoption
+    echo
+    case $bkpoption in
+        r)
+            flash recovery
+            flashmenu
+        ;;
+        f)
+            flash firmware
+            flashmenu
+        ;;
+        s)
+            flash rom
+            flashmenu
+        ;;
+        a)
+            flash addon
+            flashmenu
+        ;;
+        x)
+            ./mainmenu
+        ;;
+        *)
+            echo " Woops!! I don't understand!! What do you mean by $bkpoption?"
+            echo " Press any key to return to menu"
+            read -sn 1
+            flashmenu
+    esac
+}
+
+flashmenu

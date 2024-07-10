@@ -1,0 +1,224 @@
+#!/bin/bash
+
+function detectdeviceadb(){
+    devicestatus=`adb get-state`
+    if [ -z $devicestatus ]; then
+        return 0
+    else
+        if [ $devicestatus = "device" ] || [ $devicestatus = "recovery" ]; then
+            return 1
+        fi
+    fi
+}
+
+function restore(){
+    cd backups
+    backups=(`ls -d *\/`)
+    echo "These backups have been found:"
+    echo
+    index=0
+    for i in "${backups[@]}"
+        do
+            index=`expr $index + 1`
+            echo "   "$index"." $i
+        done
+    echo
+    echo "Select a backup to restore or c to cancel"
+    read managebackup
+    cd "${backups[`expr $managebackup - 1`]}"
+    echo
+    echo "The backup contains this stuff:"
+    files=(`ls`)
+    index=0
+    for i in "${files[@]}"
+        do
+            index=`expr $index + 1`
+            echo "   "$index"." $i
+        done
+    echo
+    echo "Do you want to select the items to be restored or restore EVERYTHING? (s/e or c to cancel)"
+    read -s -n 1 sel
+    case $sel in
+        c)
+            cd ../..
+            backupmenu
+        ;;
+        e)
+            echo "Restoring EVERYTHING from the /sdcard/ folder in the device..."
+            adb push * /sdcard/
+            cd ../..
+        ;;
+        s)
+            echo "Enter the items you want to restore separated with space or a for EVERYTHING. Once done, press enter."
+            read -a multioption
+            echo "Your selection is:"
+            for i in "${multioption[@]}"
+                do
+                    echo ${files[`expr $i - 1`]}
+                done
+            echo
+            for i in "${multioption[@]}"
+                do
+                    echo "Restoring "${files[`expr $i - 1`]} "..."
+                    adb push ${files[`expr $i - 1`]} /sdcard/
+                done
+            echo
+            cd ../..
+        ;;
+        *)
+            echo "Wrong choice. Press a key to go back to backup menu."
+            read -sn 1
+            cd ../..
+            backupmenu
+    esac
+    finish
+}
+
+function backup(){
+    echo "The /sdcard/ folder in the device contains this stuff:"
+    files=(`adb shell ls /sdcard/`)
+    index=0
+    for i in "${files[@]}"
+        do
+            index=`expr $index + 1`
+            echo "   "$index"." $i
+        done
+    echo
+    echo "Do you want to select the items to be backed up or back up EVERYTHING? (s/e or c to cancel)"
+    read -s -n 1 sel
+    case $sel in
+        c)
+            backupmenu
+        ;;
+        e)
+            echo "Backing up EVERYTHING from the /sdcard/ folder in the device..."
+            bkpfolder=$model"_"`date +%Y%m%d_%H%M%S`
+            mkdir -p backups/$bkpfolder
+            cd backups/$bkpfolder
+            adb pull -a /sdcard/
+            cd ../..
+        ;;
+        s)
+            echo "Enter the lines you want to back up separated with space. Once done, press enter."
+            read -a multioption
+            echo "Your selection is:"
+            for i in "${multioption[@]}"
+                do
+                    echo ${files[`expr $i - 1`]}
+                done
+            echo
+            bkpfolder=$model"_"`date +%Y%m%d_%H%M%S`
+            mkdir -p backups/$bkpfolder
+            cd backups/$bkpfolder
+            index=0
+            for i in "${multioption[@]}"
+                do
+                    echo "Backing up "${files[`expr $i - 1`]} "..."
+                    adb pull -a /sdcard/${files[`expr $i - 1`]}
+                done
+            cd ../..
+            echo
+        ;;
+        *)
+            echo "Wrong choice. Press a key to go back to backup menu."
+            read -sn 1
+            backupmenu
+    esac
+    finish
+}
+
+function deletebackup(){
+    cd backups
+    backups=(`ls -d *\/`)
+    echo "These backups have been found:"
+    echo
+    index=0
+    for i in "${backups[@]}"
+        do
+            index=`expr $index + 1`
+            echo "   "$index"." $i
+        done
+    echo
+    echo "Select a backup to delete or c to cancel"
+    read managebackup
+    randomnumber=`echo $[RANDOM % 99 + 0 ]`
+    echo " Please enter the number $randomnumber to confirm."
+    read rnum
+    if [ $rnum = $randomnumber ]; then
+        echo " Deleting ${backups[`expr $managebackup - 1`]}"
+        rm -rf "${backups[`expr $managebackup - 1`]}"
+        cd ..
+        finish
+    else
+        echo " Wrong answer, operation cancelled."
+        echo " Press any key to return to menu"
+        read -sn 1
+        cd ..
+        backupmenu
+    fi
+    echo
+}
+
+function finish(){
+    echo "Finished. Press a key to continue."
+    read -sn 1
+}
+
+function mainmenu(){
+    ./mainmenu
+    echo
+}
+
+# Backup menu
+function backupmenu(){
+    clear
+    ./banner
+    echo "------------------------------------------------------"
+    echo "  Backup/Restore menu"
+    echo "------------------------------------------------------"
+    echo
+    detectdeviceadb
+    if [[ $? -eq 1 ]]; then
+        echo " Device $model detected with serial number $serial"
+        echo
+        echo " Select an operation:"
+        echo " b - Back up files from device."
+        echo " r - Restore files to device."
+        echo " d - Delete backups."
+        echo
+        echo " x - To go back to main menu."
+        read -s -n 1 bkpoption
+        echo
+        case $bkpoption in
+            r)
+                restore
+                backupmenu
+            ;;
+            b)
+                backup
+                backupmenu
+            ;;
+            d)
+                deletebackup
+                backupmenu
+            ;;
+            x)
+                mainmenu
+            ;;
+            *)
+                echo " Woops!! I don't understand!! What do you mean by $bkpoption?"
+                echo " Press any key to return to menu"
+                read -sn 1
+                backupmenu
+        esac
+    else
+        echo "There is no connected device or it is in wrong mode."
+        echo "Press any key to go back to main menu."
+        read -sn 1
+        mainmenu
+    fi
+}
+
+model=`adb shell getprop ro.product.name`
+serial=`adb get-serialno`
+backupmenu

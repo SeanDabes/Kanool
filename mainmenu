@@ -1,0 +1,116 @@
+#!/bin/bash
+
+function end(){
+    echo
+    echo "  Bye!"
+    echo
+}
+
+function mainmenu(){
+    clear
+    ./banner
+    echo "adb `adb version | grep Version`"
+    fastboot --version | grep version
+    echo
+    echo "------------------------------------------------------"
+    echo "  Main Menu"
+    echo "------------------------------------------------------"
+    echo
+    echo " Select an operation:"
+    echo
+    echo " 1 - Backup tools"
+    echo " 2 - Reboot tools"
+    echo " 3 - Flash tools"
+    echo
+    echo " x - Exit"
+    echo
+    read -sn 1 mainoption
+    case $mainoption in
+        1)
+            ./backup
+        ;;
+        2)
+            rebootmenu
+        ;;
+        3)
+            ./flash
+        ;;
+        x)
+            end
+        ;;
+        *)
+            echo " Woops!! I don't understand!! What do you mean by $mainoption?"
+            echo " Press any key to return to menu"
+            read -s -n 1 dghv
+            mainmenu
+    esac
+}
+
+function finish(){
+    echo " Finished. Press any key to continue."
+    read -s -n 1 wedwe
+    echo
+}
+
+function adbwait(){
+    echo " Waiting for device to become ready..."
+    adb wait-for-device
+}
+
+function adbreboot(){
+    randomnumber=`echo $[RANDOM % 99 + 0 ]`
+    echo " Please enter the number $randomnumber to confirm."
+    read rnum
+    if [ $rnum = $randomnumber ]; then
+        echo " Rebooting to $1..."
+        adb reboot $1
+    else
+        echo " Wrong answer, operation cancelled."
+        echo " Press any key to return to menu"
+        read -s -n 1 ryjb
+        rebootmenu
+    fi
+}
+
+function rebootmenu(){
+    clear
+    ./banner
+    echo "------------------------------------------------------"
+    echo "  Reboot menu"
+    echo "------------------------------------------------------"
+    echo
+    echo " Select an option to reboot device:"
+    echo " s - Reboot to system"
+    echo " r - Reboot to recovery"
+    echo " b - Reboot to bootloader"
+    echo
+    echo " x - To go back to main menu."
+    read -s -n 1 rboption
+    echo
+    case $rboption in
+        s)
+            adbreboot system
+            adbwait
+            rebootmenu
+        ;;
+        r)
+            adbreboot recovery
+            adbwait
+            rebootmenu
+        ;;
+        b)
+            adbreboot bootloader
+            rebootmenu
+        ;;
+        x)
+            mainmenu
+        ;;
+        *)
+            echo " Really?? It was so easy!"
+            echo " Press any key to return to menu"
+            read -s -n 1 erde
+            rebootmenu
+    esac
+}
+
+mainmenu
